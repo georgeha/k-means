@@ -37,7 +37,7 @@ Install MondoDB (only if you want to run locally):
 Finally, you need to download the source files of k-means algorithm::
 
 	curl -O https://raw.githubusercontent.com/georgeha/k-means/master/k-means.py
-	curl -O https://github.com/georgeha/k-means/blob/master/mapper.py
+	curl -O https://raw.githubusercontent.com/georgeha/k-means/master/mapper.py
 	curl -O https://raw.githubusercontent.com/georgeha/k-means/master/dataset.in
 
 
