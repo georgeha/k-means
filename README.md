@@ -4,7 +4,8 @@ Welcome to k-means algorithm documentation!
 RADICAL-Pilot needs Python >= 2.6. All dependencies are installed automatically by the installer. Besides that, RADICAL-Pilot needs access to a MongoDB database that is reachable from the internet. User groups within the same institution or project can share a single MongoDB instance.
 
 Hands-on Job Sumbimission:
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 In order to make this example work, we need first to  install the following:::
 
 	virtualenv $HOME/myenv
@@ -34,13 +35,13 @@ Install MondoDB (only if you want to run locally):
 
 
 Finally, you need to download the source files of k-means algorithm::
+
 	curl -O https://raw.githubusercontent.com/georgeha/k-means/master/k-means.py
 	curl -O https://github.com/georgeha/k-means/blob/master/mapper.py
 	curl -O https://raw.githubusercontent.com/georgeha/k-means/master/dataset.in
 
 
 Run the Code:
-^^^^^^^^^^^^^
 
 To give it a test drive try via command line the following command::
 	
@@ -51,7 +52,7 @@ where X is the number of clusters the user wants to create.
 
 
 More About this algorithm:
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 
 This algorithm creates the clusters of the elements found in the dataset.in file. You can create your own file 
 or create a new dataset file using the following generator::
