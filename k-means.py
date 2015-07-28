@@ -5,16 +5,13 @@ __license__ = "MIT"
 import sys
 import os
 import radical.pilot as rp
-import saga
 import time
-import gzip
 import copy
 
-
-SHARED_INPUT_FILE = 'dataset.gz'
+SHARED_INPUT_FILE = 'dataset.in'
 MY_STAGING_AREA = 'staging:///'
 
-""" DESCRIPTION:  mpk-means
+""" DESCRIPTION:  k-means
 For every task A_n (mapper)  is started
 """
 
@@ -23,7 +20,6 @@ For every task A_n (mapper)  is started
 #
 # Try running this example with RADICAL_PILOT_VERBOSE=debug set if 
 # you want to see what happens behind the scenes!
-
 
 #------------------------------------------------------------------------------
 #
@@ -48,10 +44,53 @@ def unit_state_cb (unit, state) :
 #
 if __name__ == "__main__":
 
+    
+    # Read the number of the divisions you want to create
+    args = sys.argv[1:]
+    if len(args) < 1:
+        print "Usage: Give the number of the divisions you want to create Try:"
+        print "python k-means k"
+        sys.exit(-1)
+    k = int(sys.argv[1])  # number of the divisions - clusters
+
+    # Check if the dataset exists  and count the total number of lines of the dataset
+    try:
+    	data = open(SHARED_INPUT_FILE,'r')
+    except IOError:
+    	print "Missing data-set. file! Check the name of the dataset"
+    	sys.exit(-1)
+    total_file_lines =  sum(1 for _ in data)
+
+	#-----------------------------------------------------------------------
+    #Choose randomly k elements from the dataset as centroids
+    data.seek(0,0) # move fd to the beginning of the file
+    centroid = list()
+    for i in range(0,k):
+        centroid.append(data.readline())
+    data.close()
+    centroid =  map(float,centroid)        
+    print centroid
+    #--------------------------------------------------------------------------
+    ## Put the centroids into a file to share
+    centroid_to_string = ','.join(map(str,centroid))
+    centroid_file = open('centroids.data', 'w')     
+    centroid_file.write(centroid_to_string)
+    centroid_file.close()   
+
+    #-------------------------------------------------------------------------
+    # Initialization of variables
+    CUs = 16
+    convergence = False   # We have no convergence yet
+    m = 0 # number of iterations
+    maxIt = 10 # the maximum number of iteration
+    chunk_size = total_file_lines/CUs  # this is the size of the part that each unit is going to control    
+
+    #------------------------
     try:
         # Create a new session. A session is the 'root' object for all other
         # RADICAL-Pilot objects. It encapsulates the MongoDB connection(s) as
         # well as security contexts.
+        start_time = time.time()
         DBURL = "mongodb://localhost:27017"
         session = rp.Session(database_url = DBURL)
 
@@ -91,42 +130,12 @@ if __name__ == "__main__":
         pdesc = rp.ComputePilotDescription()
         pdesc.resource =  "local.localhost"  # NOTE: This is a "label", not a hostname
         pdesc.runtime  = 10 # minutes
-        pdesc.cores    = 2
-        pdesc.cleanup  = True
-
+        pdesc.cores    = 2  # define cores
+        pdesc.cleanup  = False
         # submit the pilot.
         print "Submitting Compute Pilot to Pilot Manager ..."
         pilot = pmgr.submit_pilots(pdesc)
-
-        # Read the number of the divisions you want to create
-        args = sys.argv[1:]
-        if len(args) < 1:
-            print "Usage: Give the number of the divisions you want to create Try:" % __file__
-            print "python k-means k"
-            sys.exit(-1)
-        k = int(sys.argv[1])  # number of the divisions - clusters
         #-----------------------------------------------------------------------
-        read_and_tarball_time = time.time()
-        # Read the dataset from a local file and  and create a tarball to make it smaller
-        try:
-            data = open("dataset.in",'r')
-        except IOError:
-            print "Missing data-set. file! Check the name of the data-set"
-            sys.exit(-1)
-
-        dataset_as_string_array = data.readline().split(',')
-        data.close()
-        x = map(float, dataset_as_string_array)
-        tarball_string = ','.join(map(str,x))
-
-
-        # Create a tarball for the dataset to save time & space
-        f = gzip.open('dataset.gz', 'wb')
-        f.write(tarball_string)
-        f.close()
-        read_and_tarball_time = read_and_tarball_time - time.time()
-        print 'read and tarball time = %d' % read_and_tarball_time
-
         # Define the url of the local file in the local directory
         shared_input_file_url = 'file://%s/%s' % (os.getcwd(), SHARED_INPUT_FILE)
         staged_file = "%s%s" % (MY_STAGING_AREA, SHARED_INPUT_FILE)
@@ -158,38 +167,18 @@ if __name__ == "__main__":
         # Add the created ComputePilot to the UnitManager.
         print "Registering Compute Pilot with Unit Manager ..."
         umgr.add_pilots(pilot)
-
-        #------------------------------------------------------------------------
-        # Choosing centroids
-        ## The centroids selection is done randomly - so we choose the first k elements, for less computations
-        centroid = []
-        for i in range(0,k):
-            centroid.append(x[i])
-        print centroid
-       #--------------------------------------------------------------------------
-       ## Put the centroids into a file to share
-        centroid_to_string = ','.join(map(str,centroid))
-        centroid_file = open('centroids.data', 'w')     
-        centroid_file.write(centroid_to_string)
-        centroid_file.close()       
-        #-------------------------------------------------------------------------
-        # Initialization of variables
-        convergence = False   # We have no convergence yet
-        m = 0 # number of iterations
-        maxIt = 10 # the maximum number of iteration
-        part_length = len(x)/pdesc.cores  # this is the length of the part that each unit is going to control
+    
         #-------------------------------------------------------------------------
         ## CUS & map - reduce
-        start_time = time.time() # start map - reduce timer
 
         while m<maxIt and False == convergence:
             ## MAPPER PHASE
             mylist = []
-            for i in range(1,pdesc.cores+1):
+            for i in range(1,CUs+1):
                 cudesc = rp.ComputeUnitDescription()
-                cudesc.environment = {"cu": "%d" % i, "k": "%d" % k, "part_length": "%d" % part_length, "cores": "%d" % pdesc.cores}
+                cudesc.environment = { }
                 cudesc.executable = "python"
-                cudesc.arguments = ['mapper.py', '$cu','$k', '$part_length', '$cores']
+                cudesc.arguments = ['mapper.py', i, k, chunk_size, CUs]
                 cudesc.input_staging = ['mapper.py', sd_shared, 'centroids.data']
                 cudesc.output_staging = []
                 file_name = "combiner_file_%d.data" % i
@@ -207,12 +196,15 @@ if __name__ == "__main__":
             afile = []
             total_sums = []  # total partial sums per cluster
             total_nums = []  # total number of sample samples per cluster
+            new_centroids = list()
+
             # initiate values
             for i in range(0,k):
                 total_nums.append(0)
                 total_sums.append(0)
+                new_centroids.append(0)
 
-            for i in range(0,pdesc.cores):
+            for i in range(0,CUs):
                 afile.append(open("combiner_file_%d.data" % (i+1), "rb"))
                 for line in afile[i]:
                     line = line.strip()  #remove newline character
@@ -224,12 +216,24 @@ if __name__ == "__main__":
             # new values
             convergence = True
             m+=1
-            for i in range(0,k):
 
-                if total_nums[i]!=0 and centroid[i] != total_sums[i] / total_nums[i]:
+            for i in range(0,k):
+                if total_nums[i]!=0:
+                    new_centroids[i] =  total_sums[i] / total_nums[i]
+            centroid.sort()
+
+            # sort total_nums based on new_centroids list
+            zipped = zip(new_centroids, total_nums)
+            sorted_zipped = sorted(zipped)
+            new_centroids = [point[0] for point in sorted_zipped]
+            total_nums = [point[1] for point in sorted_zipped]
+
+            # check convergence and update centroids
+            for i in range(0,k):
+                if total_nums[i]!=0 and abs(centroid[i] - new_centroids[i])>=0.1*centroid[i]:
                     convergence = False
                     if total_nums[i]!=0:
-                        centroid[i] = total_sums[i] / total_nums[i]
+                        centroid[i] = new_centroids[i]
 
             # Put the centroids into a file to share
             centroid_to_string = ','.join(map(str,centroid))
@@ -241,26 +245,36 @@ if __name__ == "__main__":
 
         #--------------------END OF K-MEANS ALGORITHM --------------------------#
         # K - MEANS ended successfully - print total times and centroids
-        print 'MR-K-means algorithm ended successfully after %d iterations' % m
+        print 'K-means algorithm ended successfully after %d iterations' % m
         total_time = time.time() - start_time  # total execution time
         print 'The total execution time is: %f seconds' % total_time
         total_time /= 60
         print 'Which is: %f minutes' % total_time
         print 'Centroids:'
         print centroid
-        session.close()
-        print "Session closed, exiting now ..."
 
         #cleanup intermediate files
-        for i in range(1,pdesc.cores+1):
+        for i in range(1,CUs+1):
             string = 'combiner_file_%d.data' % i
             os.remove(string)
 
-        sys.exit(0)
+    except Exception as e:
+        # Something unexpected happened in the pilot code above
+        print "caught Exception: %s" % e
+        raise
 
-    except Exception, e:
-        print "AN ERROR OCCURRED: %s" % (str(e))
-        sys.exit(-1)
+    except (KeyboardInterrupt, SystemExit) as e:
+        # the callback called sys.exit(), and we can here catch the
+        # corresponding KeyboardInterrupt exception for shutdown.  We also catch
+        # SystemExit (which gets raised if the main threads exits for some other
+        # reason).
+        print "need to exit now: %s" % e
+
+    finally:
+        # always clean up the session, no matter if we caught an exception or
+        # not.
+        print "Session closed, exiting now ..."
+        session.close(cleanup=True, terminate=True)
 
 
 

@@ -14,14 +14,10 @@ n = int(sys.argv[1])  # k is the number of clusters i want to create
 data_file = open('dataset.in', 'w')
 
 
-for i in range(0,n-1):
-    a = random.uniform(0, 10000)
+for i in range(0,n):
+    a = random.uniform(0, 100000)
     data_file.write(str(a))
-    data_file.write(',')
-
-# writing the last element separately, because we don't need to add a coma
-a = random.uniform(0, 10000)
-data_file.write(str(a))
+    data_file.write("\n")
 
 data_file.close()
 

@@ -3,8 +3,6 @@ __copyright__ = "Copyright 2012-2013, The Pilot Program"
 __license__ = "MIT"
 
 import sys
-import gzip
-
 def get_distance(dataPointX, centroidX):
     # Calculate Euclidean distance.
     return abs(centroidX - dataPointX)
@@ -17,35 +15,43 @@ if __name__ == "__main__":
 
     args = sys.argv[1:]
 
-    cu = int(sys.argv[1])
+    curent_cu = int(sys.argv[1])
     k = int(sys.argv[2])  #number of clusters
-    part_length = int(sys.argv[3])
-    cores = int(sys.argv[4])
-    #print 'cu: %d, k: %d, part_length: %d, cores %d' % (cu, k, part_length, cores)
+    chunk_size = int(sys.argv[3])
+    total_CUs = int(sys.argv[4])
 
     #----------------------Reading the Centroid files-------------------------------
-    centroid = []
-    data = open("centroids.data", "r")
+    centroid = list()
+    data = open("centroids.data", "r")   
     read_as_string_array = data.readline().split(',')
     centroid = map(float, read_as_string_array)
     data.close()
-    #-----------------Reading the Elements file --------------
-    elements = []
-    read_file = gzip.open('dataset.gz', 'rb')
-    read_as_string_array = read_file.readline().split(',')
-    elements = map(float, read_as_string_array)
 
-    start_part = (cu-1)*part_length
-    end_part = (cu)*(part_length)-1
-    if cu == cores:
-        end_part = len(elements)  # in case it is not equally divided make sure that the last CU checks until the last element of the list
+    #-----------------Reading the Elements file --------------
+    read_file = open('dataset.in', 'rb')
+    start_reading_from = (curent_cu-1)*chunk_size
+    stop_reading_at = (curent_cu)*(chunk_size)-1
+
+    if curent_cu == total_CUs:
+        stop_reading_at = "" # this is the sign of EOF. last CU compute until the EOF
+
+    # we only read the elements we will process - Each CU compute a part of the file
+    elements = list()
+    for i, line in enumerate(read_file):
+        if i == "":
+            break
+        if i >= start_reading_from and i<=stop_reading_at:
+            elements.append(line)
+    read_file.close()
+    elements = map(float, elements)
+    
     #---------------------------------------------------------------------------------
     # Open files to append the results of the mapper
-    mapper_res = open("mapper_res_%d.data" % cu, "a")
+    mapper_res = open("mapper_res_%d.data" % curent_cu, "w")   # Note to self: itane append mode...mln prp na einai se w omws
     #----------------------------------------------------------------------------------
     # Mapper
     #Map function
-    for i in range(start_part,end_part):
+    for i in range(0,len(elements)):
         minDist = get_distance(elements[i], centroid[0])
         cluster = 0
         for j in range(1,k):
@@ -60,7 +66,7 @@ if __name__ == "__main__":
     mapper_res.close()
     #-----------------------------------------------------------------------------------
     # Combiner
-    mapper_res = open("mapper_res_%d.data" % cu, "rb")
+    mapper_res = open("mapper_res_%d.data" % curent_cu, "rb")
 
     sum_elements_per_centroid = []  # partial sum of cluster's sample in the same map task
     num_elements_per_centroid = []  # here we record the number of samples in the same cluster in the same map task.
@@ -76,16 +82,14 @@ if __name__ == "__main__":
         cluster = int(cluster)
         sum_elements_per_centroid[cluster] += float(value)
         num_elements_per_centroid[cluster] += 1
-    #close the mapper_file
     mapper_res.close()
 
     # Write the results of the combiner function to a file for the reducer function
-    combiner_file = open("combiner_file_%d.data" % cu, "a")
+    combiner_file = open("combiner_file_%d.data" % curent_cu, "w")
     for cluster in range(0,k):
         string = '%s\t%s\t%s\n' % (cluster, sum_elements_per_centroid[cluster],num_elements_per_centroid[cluster])
         combiner_file.write(string) ## key = cluster value_1 = partial sum of cluster samples
     combiner_file.close()
-
 
 
 
