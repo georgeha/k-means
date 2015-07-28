@@ -91,8 +91,8 @@ if __name__ == "__main__":
         # RADICAL-Pilot objects. It encapsulates the MongoDB connection(s) as
         # well as security contexts.
         start_time = time.time()
-        DBURL = "mongodb://localhost:27017"
-        session = rp.Session(database_url = DBURL)
+        #DBURL = "mongodb://localhost:27017"
+        session = rp.Session() # database_url = DBURL
 
         # ----- CHANGE THIS -- CHANGE THIS -- CHANGE THIS -- CHANGE THIS ------
         # 
@@ -176,13 +176,10 @@ if __name__ == "__main__":
             mylist = []
             for i in range(1,CUs+1):
                 cudesc = rp.ComputeUnitDescription()
-                cudesc.environment = { }
                 cudesc.executable = "python"
                 cudesc.arguments = ['mapper.py', i, k, chunk_size, CUs]
                 cudesc.input_staging = ['mapper.py', sd_shared, 'centroids.data']
-                cudesc.output_staging = []
-                file_name = "combiner_file_%d.data" % i
-                cudesc.output_staging.append(file_name)
+                cudesc.output_staging = ["combiner_file_%d.data" % i]
                 mylist.append(cudesc)
                 
             print 'Submitting the CU to the Unit Manager...'
