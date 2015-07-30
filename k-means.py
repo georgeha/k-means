@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
     #-------------------------------------------------------------------------
     # Initialization of variables
-    CUs = 16
+    CUs = 2
     convergence = False   # We have no convergence yet
     m = 0 # number of iterations
     maxIt = 10 # the maximum number of iteration

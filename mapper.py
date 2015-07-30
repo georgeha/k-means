@@ -3,6 +3,7 @@ __copyright__ = "Copyright 2012-2013, The Pilot Program"
 __license__ = "MIT"
 
 import sys
+
 def get_distance(dataPointX, centroidX):
     # Calculate Euclidean distance.
     return abs(centroidX - dataPointX)
@@ -45,12 +46,13 @@ if __name__ == "__main__":
     read_file.close()
     elements = map(float, elements)
     
-    #---------------------------------------------------------------------------------
-    # Open files to append the results of the mapper
-    mapper_res = open("mapper_res_%d.data" % curent_cu, "w")   # Note to self: itane append mode...mln prp na einai se w omws
     #----------------------------------------------------------------------------------
-    # Mapper
-    #Map function
+    sum_elements_per_centroid = list()  # partial sum of cluster's sample in this task
+    num_elements_per_centroid = list()  # number of samples of each cluster in the same map task.
+    for i in range(0,k):
+        sum_elements_per_centroid.append(0)
+        num_elements_per_centroid.append(0)
+
     for i in range(0,len(elements)):
         minDist = get_distance(elements[i], centroid[0])
         cluster = 0
@@ -59,36 +61,16 @@ if __name__ == "__main__":
             if minDist != min(minDist,curDist):
                 cluster = j  # closest centroid is centroid No: j
                 minDist = curDist
-        string = '%s\t%s\n' % (cluster, elements[i])   #mapper prints the key (=index) & the value (=elements[i])
-        print string
-        mapper_res.write(string)
-
-    mapper_res.close()
-    #-----------------------------------------------------------------------------------
-    # Combiner
-    mapper_res = open("mapper_res_%d.data" % curent_cu, "rb")
-
-    sum_elements_per_centroid = []  # partial sum of cluster's sample in the same map task
-    num_elements_per_centroid = []  # here we record the number of samples in the same cluster in the same map task.
-    for i in range(0,k):
-        sum_elements_per_centroid.append(0)
-        num_elements_per_centroid.append(0)
-
-    # Combine function  - In the combine function, we partially sum the values of the points assigned to
-    #the same cluster.
-    for line in mapper_res:
-        line = line.strip()  # remove the newline character
-        cluster, value = line.split('\t', 2) # split index and count to numbers
-        cluster = int(cluster)
-        sum_elements_per_centroid[cluster] += float(value)
+        sum_elements_per_centroid[cluster] += elements[i]
         num_elements_per_centroid[cluster] += 1
-    mapper_res.close()
+        
 
-    # Write the results of the combiner function to a file for the reducer function
+
+    # Write results into a file
     combiner_file = open("combiner_file_%d.data" % curent_cu, "w")
     for cluster in range(0,k):
         string = '%s\t%s\t%s\n' % (cluster, sum_elements_per_centroid[cluster],num_elements_per_centroid[cluster])
-        combiner_file.write(string) ## key = cluster value_1 = partial sum of cluster samples
+        combiner_file.write(string) 
     combiner_file.close()
 
 
