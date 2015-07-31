@@ -15,7 +15,8 @@ Script to create randomly dataset:
 
 	curl -O https://raw.githubusercontent.com/georgeha/k-means/master/creating_dataset.py
 
-Run via command line to create a dataset::
+Run via command line to create a dataset:
+
 	python creating_dataset.py (number_of_elements)
 
 
