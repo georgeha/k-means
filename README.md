@@ -1,45 +1,26 @@
 Welcome to k-means algorithm documentation!
 ===========================================
- This algorithm implements the k-means algorithm using the RADICAL PILOT API.
-RADICAL-Pilot needs Python >= 2.6. All dependencies are installed automatically by the installer. Besides that, RADICAL-Pilot needs access to a MongoDB database that is reachable from the internet. User groups within the same institution or project can share a single MongoDB instance.
 
-Hands-on Job Sumbimission:
+Installation:
+First install Radical-Pilot and its dependences. You can find out how to do it 
+here:  http://radicalpilot.readthedocs.org/en/latest/installation.html#id1
 
-
-In order to make this example work, we need first to  install the following:::
-
-	virtualenv $HOME/myenv
-	source $HOME/myenv/bin/activate
-
-Install Radical-Pilot API::
-	
-	pip install radical.pilot:
-
-
-Install MondoDB (only if you want to run locally):
-
-	Linux Users::
-
-		apt-get -y install scons libssl-dev libboost-filesystem-dev libboost-program-options-dev libboost-system-dev libboost-thread-dev
-		git clone -b r2.6.3 https://github.com/mongodb/mongo.git
-		cd mongo
-		scons --64 --ssl all
-		scons --64 --ssl --prefix=/usr install
-
-	Mac Users::
-
-		brew install mongodb
-		mkdir -p /data/db
-		chmod 755 /data/db
-		mongod
-
-
-Finally, you need to download the source files of k-means algorithm::
+ 
+ Download source code::
 
 	curl -O https://raw.githubusercontent.com/georgeha/k-means/master/k-means.py
 	curl -O https://raw.githubusercontent.com/georgeha/k-means/master/mapper.py
-	curl -O https://raw.githubusercontent.com/georgeha/k-means/master/dataset.in
 
+Script to create randomly dataset:
+
+	curl -O https://raw.githubusercontent.com/georgeha/k-means/master/creating_dataset.py
+
+Run via command line to create a dataset::
+	python creating_dataset.py (number_of_elements)
+
+
+If you are using your own dataset:
+The name of the input file must be dataset.in , and the elements must be written one at each line.
 
 Run the Code:
 
@@ -50,15 +31,19 @@ To give it a test drive try via command line the following command::
 where X is the number of clusters the user wants to create.
 
 
+More info:
 
-More About this algorithm:
+This algorithm uses a local MongoDB database. You can export your own database using export.
+
+	Line 80: You can choose the number of Compute Units you are creating. 
+	I believe the optimum is to be equal with cores
 
 
-This algorithm creates the clusters of the elements found in the dataset.in file. You can create your own file 
-or create a new dataset file using the following generator::
-	
-	curl -O https://raw.githubusercontent.com/georgeha/k-means/master/creating_dataset.py
+ Algorithm Implementation:
 
-run via command line::
-
-	python creating_dataset.py (number_of_elements)
+ This algorithm is stage in to pilot the input dataset. It chooses the first k elements of the dataset randomly 
+ as the initial centroids. Then, it creates n tasks and each task is computing the partial sums of the elements
+ of each cluster and save them to a file. Each of the task is computing part of the dataset which is equally 
+ divided to them. Locally, it aggregates all partial sums of each Cluster  to define the new centroids. If there
+ is a convergence the algorithm stops  . If there is no convergence after 10 loops the algorithm ends to prevent 
+ from getting into a local minimum forever. Finally it saves  the centroids to: centroids.data
