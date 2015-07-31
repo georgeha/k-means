@@ -1,5 +1,5 @@
 __author__ = "George Chantzialexiou"
-__copyright__ = "Copyright 2012-2013, The Pilot Program"
+__copyright__ = "Copyright 2013-2014, http://radical.rutgers.edu"
 __license__ = "MIT"
 
 import sys
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     # we only read the elements we will process - Each CU compute a part of the file
     elements = list()
     for i, line in enumerate(read_file):
-        if i == "":
+        if i == "" or i>stop_reading_at:
             break
         if i >= start_reading_from and i<=stop_reading_at:
             elements.append(line)

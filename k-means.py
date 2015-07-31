@@ -1,5 +1,5 @@
 __author__ = "George Chantzialexiou"
-__copyright__ = "Copyright 2012-2013, The Pilot Program"
+__copyright__ = "Copyright 2013-2014, http://radical.rutgers.edu"
 __license__ = "MIT"
 
 import sys
@@ -44,8 +44,6 @@ def unit_state_cb (unit, state) :
 #
 if __name__ == "__main__":
 
-    
-    # Read the number of the divisions you want to create
     args = sys.argv[1:]
     if len(args) < 1:
         print "Usage: Give the number of the divisions you want to create Try:"
@@ -59,7 +57,7 @@ if __name__ == "__main__":
     except IOError:
     	print "Missing data-set. file! Check the name of the dataset"
     	sys.exit(-1)
-    total_file_lines =  sum(1 for _ in data)
+    total_file_lines =  sum(1 for _ in data) 
 
 	#-----------------------------------------------------------------------
     #Choose randomly k elements from the dataset as centroids
@@ -79,7 +77,7 @@ if __name__ == "__main__":
 
     #-------------------------------------------------------------------------
     # Initialization of variables
-    CUs = 2
+    CUs = 2   # NOTE: Define how many CUs you are willing to use 
     convergence = False   # We have no convergence yet
     m = 0 # number of iterations
     maxIt = 10 # the maximum number of iteration
@@ -87,12 +85,9 @@ if __name__ == "__main__":
 
     #------------------------
     try:
-        # Create a new session. A session is the 'root' object for all other
-        # RADICAL-Pilot objects. It encapsulates the MongoDB connection(s) as
-        # well as security contexts.
         start_time = time.time()
         #DBURL = "mongodb://localhost:27017"
-        session = rp.Session() # database_url = DBURL
+        session = rp.Session() 
 
         # ----- CHANGE THIS -- CHANGE THIS -- CHANGE THIS -- CHANGE THIS ------
         # 
@@ -130,7 +125,7 @@ if __name__ == "__main__":
         pdesc = rp.ComputePilotDescription()
         pdesc.resource =  "local.localhost"  # NOTE: This is a "label", not a hostname
         pdesc.runtime  = 10 # minutes
-        pdesc.cores    = 2  # define cores
+        pdesc.cores    = CUs  # define cores 
         pdesc.cleanup  = False
         # submit the pilot.
         print "Submitting Compute Pilot to Pilot Manager ..."
@@ -186,10 +181,9 @@ if __name__ == "__main__":
             mylist_units = umgr.submit_units(mylist)
             # wait for all units to finish
             umgr.wait_units()
-            print "All Compute Units completed PhaseA successfully! Now.."
+            print "All Compute Units completed successfully!"
             #-------------------------------------------------------------------------------
-            # REDUCER - The input of the reduce function is the data obtained from the combine function of each host.
-            # In reduce function, we can sum all the samples and compute the total number of samples assigned to the same cluster, to find the new centroids
+            # Aggregate all partial sums of each Cluster  to define the new centroids
             afile = []
             total_sums = []  # total partial sums per cluster
             total_nums = []  # total number of sample samples per cluster
