@@ -106,7 +106,7 @@ if __name__ == "__main__":
         # on your local machine. 
         #
         #c = rp.Context('ssh')
-        #c.user_id = "georgeha"
+        #c.user_id = "username"
         #c.user_pass = "passcode"
         #session.add_context(c)
 
