@@ -3,10 +3,11 @@ __copyright__ = "Copyright 2013-2014, http://radical.rutgers.edu"
 __license__ = "MIT"
 
 import sys
+import numpy as np
 
-def get_distance(dataPointX, centroidX):
+def get_distance(dataPoint, centroid):
     # Calculate Euclidean distance.
-    return abs(centroidX - dataPointX)
+    return np.sqrt(sum((dataPoint - centroid) ** 2))
 # ------------------------------------------------------------------------------
 #
 
@@ -20,6 +21,7 @@ if __name__ == "__main__":
     k = int(sys.argv[2])  #number of clusters
     chunk_size = int(sys.argv[3])
     total_CUs = int(sys.argv[4])
+    DIMENSIONS = int(sys.argv[5])
 
     #----------------------Reading the Centroid files-------------------------------
     centroid = list()
@@ -27,6 +29,9 @@ if __name__ == "__main__":
     read_as_string_array = data.readline().split(',')
     centroid = map(float, read_as_string_array)
     data.close()
+    #convert to np array
+    centroid = np.asfarray(centroid)
+    centroid= np.reshape(centroid,(-1,DIMENSIONS))
 
     #-----------------Reading the Elements file --------------
     read_file = open('dataset.in', 'rb')
@@ -45,6 +50,12 @@ if __name__ == "__main__":
             elements.append(line)
     read_file.close()
     elements = map(float, elements)
+    #convert to np array
+    elements = np.asfarray(elements)
+    elements = np.reshape(elements,(-1,DIMENSIONS))
+
+    print elements
+    print "\n"
     
     #----------------------------------------------------------------------------------
     sum_elements_per_centroid = list()  # partial sum of cluster's sample in this task
@@ -63,13 +74,22 @@ if __name__ == "__main__":
                 minDist = curDist
         sum_elements_per_centroid[cluster] += elements[i]
         num_elements_per_centroid[cluster] += 1
+
+   	print sum_elements_per_centroid
+    print "\n"
+
+    print num_elements_per_centroid
+    print "\n"
         
 
 
     # Write results into a file
     combiner_file = open("combiner_file_%d.data" % curent_cu, "w")
     for cluster in range(0,k):
-        string = '%s\t%s\t%s\n' % (cluster, sum_elements_per_centroid[cluster],num_elements_per_centroid[cluster])
+        sum_elements_per_centroid_list = np.array(sum_elements_per_centroid[cluster]).tolist()
+        if sum_elements_per_centroid_list!=0:
+        	sum_elements_per_centroid_list = ','.join(map(str,sum_elements_per_centroid_list))
+        string = '%s\t%s\t%s\n' % (cluster, sum_elements_per_centroid_list,num_elements_per_centroid[cluster])
         combiner_file.write(string) 
     combiner_file.close()
 

@@ -1,4 +1,5 @@
 import sys, random 
+import matplotlib.pyplot as plt
 
 
 args = sys.argv[1:]
@@ -13,12 +14,20 @@ n = int(sys.argv[1])  # k is the number of clusters i want to create
 #open the file where we write the results
 data_file = open('dataset.in', 'w')
 
+DIMENSIONS = 3
 
-for i in range(0,n):
-    a = random.uniform(0, 100000)
-    data_file.write(str(a))
+
+#coordinates = list()
+for i in range(0,DIMENSIONS*n):
+    coordinates = random.expovariate(1)*100
+    data_file.write(str(coordinates))
     data_file.write("\n")
-
 data_file.close()
 
+"""
+plt.plot(coordinates)
+plt.ylabel('Expovariate Numbers')
+plt.show()
+
+"""
 

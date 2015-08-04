@@ -7,6 +7,7 @@ import os
 import radical.pilot as rp
 import time
 import copy
+import numpy as np
 
 SHARED_INPUT_FILE = 'dataset.in'
 MY_STAGING_AREA = 'staging:///'
@@ -42,6 +43,11 @@ def unit_state_cb (unit, state) :
 
 # ------------------------------------------------------------------------------
 #
+def get_distance(dataPoint, centroid):
+    # Calculate Euclidean distance.
+    return np.sqrt(sum((dataPoint - centroid) ** 2))
+# ------------------------------------------------------------------------------
+#   
 if __name__ == "__main__":
 
     args = sys.argv[1:]
@@ -50,6 +56,8 @@ if __name__ == "__main__":
         print "python k-means k"
         sys.exit(-1)
     k = int(sys.argv[1])  # number of the divisions - clusters
+
+    DIMENSIONS = 3 
 
     # Check if the dataset exists  and count the total number of lines of the dataset
     try:
@@ -63,7 +71,7 @@ if __name__ == "__main__":
     #Choose randomly k elements from the dataset as centroids
     data.seek(0,0) # move fd to the beginning of the file
     centroid = list()
-    for i in range(0,k):
+    for i in range(0,DIMENSIONS*k):
         centroid.append(data.readline())
     data.close()
     centroid =  map(float,centroid)        
@@ -81,7 +89,9 @@ if __name__ == "__main__":
     convergence = False   # We have no convergence yet
     m = 0 # number of iterations
     maxIt = 10 # the maximum number of iteration
-    chunk_size = total_file_lines/CUs  # this is the size of the part that each unit is going to control    
+    chunk_size = total_file_lines/DIMENSIONS
+    chunk_size = chunk_size/CUs 
+    chunk_size *= DIMENSIONS    # this is the size of the part that each unit is going to control  
 
     #------------------------
     try:
@@ -96,7 +106,7 @@ if __name__ == "__main__":
         # on your local machine. 
         #
         #c = rp.Context('ssh')
-        #c.user_id = "username"
+        #c.user_id = "georgeha"
         #c.user_pass = "passcode"
         #session.add_context(c)
 
@@ -172,7 +182,7 @@ if __name__ == "__main__":
             for i in range(1,CUs+1):
                 cudesc = rp.ComputeUnitDescription()
                 cudesc.executable = "python"
-                cudesc.arguments = ['mapper.py', i, k, chunk_size, CUs]
+                cudesc.arguments = ['mapper.py', i, k, chunk_size, CUs, DIMENSIONS]
                 cudesc.input_staging = ['mapper.py', sd_shared, 'centroids.data']
                 cudesc.output_staging = ["combiner_file_%d.data" % i]
                 mylist.append(cudesc)
@@ -201,7 +211,10 @@ if __name__ == "__main__":
                     line = line.strip()  #remove newline character
                     cluster,p_sum,num = line.split('\t',3)   # split line into cluster No, partial sum and number of partial sums
                     cluster = int(cluster)
-                    total_sums[cluster] += float(p_sum)
+                    p_sum = p_sum.split(',')
+                    p_sum = map(float,p_sum)
+                    p_sum = np.asfarray(p_sum)
+                    total_sums[cluster] += p_sum
                     total_nums[cluster] += int(num)
                 afile[i].close()
             # new values
@@ -211,21 +224,21 @@ if __name__ == "__main__":
             for i in range(0,k):
                 if total_nums[i]!=0:
                     new_centroids[i] =  total_sums[i] / total_nums[i]
-            centroid.sort()
 
-            # sort total_nums based on new_centroids list
-            zipped = zip(new_centroids, total_nums)
-            sorted_zipped = sorted(zipped)
-            new_centroids = [point[0] for point in sorted_zipped]
-            total_nums = [point[1] for point in sorted_zipped]
+            centroid = np.asfarray(centroid)
+
+    	    centroid = np.reshape(centroid,(-1,DIMENSIONS))
+    	    arr = np.array([0,0,0])
 
             # check convergence and update centroids
             for i in range(0,k):
-                if total_nums[i]!=0 and abs(centroid[i] - new_centroids[i])>=0.1*centroid[i]:
+                if total_nums[i]!=0 and abs(get_distance(centroid[i],arr) - get_distance(new_centroids[i],arr))>=0.1*get_distance(centroid[i],arr):
                     convergence = False
                     if total_nums[i]!=0:
                         centroid[i] = new_centroids[i]
 
+
+            centroid = np.reshape(centroid,k*DIMENSIONS).tolist()
             # Put the centroids into a file to share
             centroid_to_string = ','.join(map(str,centroid))
             centroid_file = open('centroids.data', 'w')
@@ -242,7 +255,10 @@ if __name__ == "__main__":
         total_time /= 60
         print 'Which is: %f minutes' % total_time
         print 'Centroids:'
+        centroid = np.asfarray(centroid)
+    	centroid= np.reshape(centroid,(-1,DIMENSIONS))
         print centroid
+
 
         #cleanup intermediate files
         for i in range(1,CUs+1):
